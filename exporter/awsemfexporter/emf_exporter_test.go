@@ -6,6 +6,8 @@ package awsemfexporter
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/aws/smithy-go"
@@ -440,4 +442,29 @@ func TestNewEmfExporterWithoutConfig(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, exp)
 	assert.Equal(t, expCfg.logger, settings.Logger)
+}
+
+func TestGetPusherConcurrent(t *testing.T) {
+	ctx := t.Context()
+	factory := NewFactory()
+	expCfg := factory.CreateDefaultConfig().(*Config)
+	expCfg.Region = "us-west-2"
+	expCfg.MaxRetries = 0
+	exp, err := newEmfExporter(ctx, expCfg, exportertest.NewNopSettings(metadata.Type))
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for i := range 100 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			key := cwlogs.StreamKey{
+				LogGroupName:  "test-group",
+				LogStreamName: fmt.Sprintf("stream-%d", i%5),
+			}
+			p := exp.getPusher(key)
+			assert.NotNil(t, p)
+		}()
+	}
+	wg.Wait()
 }
