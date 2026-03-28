@@ -294,17 +294,14 @@ func TestLogPusherConcurrentAddAndFlush(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for range 50 {
-		wg.Add(2)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			event := NewEvent(time.Now().UnixMilli(), "concurrent test message")
 			event.GeneratedTime = time.Now()
 			_ = p.AddLogEntry(ctx, event)
-		}()
-		go func() {
-			defer wg.Done()
+		})
+		wg.Go(func() {
 			_ = p.ForceFlush(ctx)
-		}()
+		})
 	}
 	wg.Wait()
 }
