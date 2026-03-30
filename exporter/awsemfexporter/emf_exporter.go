@@ -156,8 +156,11 @@ func (emf *emfExporter) pushMetricsData(ctx context.Context, md pmetric.Metrics)
 }
 
 func (emf *emfExporter) getPusher(key cwlogs.StreamKey) cwlogs.Pusher {
-	p, _ := emf.pusherMap.LoadOrStore(key,
-		cwlogs.NewPusher(key, emf.retryCnt, *emf.svcStructuredLog, emf.config.logger))
+	p, loaded := emf.pusherMap.Load(key)
+	if !loaded {
+		p, _ = emf.pusherMap.LoadOrStore(key,
+			cwlogs.NewPusher(key, emf.retryCnt, *emf.svcStructuredLog, emf.config.logger))
+	}
 	return p.(cwlogs.Pusher)
 }
 
